@@ -1,0 +1,63 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: regsyncs.gounix.nl
+spec:
+  group: gounix.nl
+  scope: Namespaced
+  names:
+    plural: regsyncs
+    singular: regsync
+    kind: Regsync
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              src:
+                type: object
+                properties:
+                  registryName:
+                    description: name of registry resource
+                    type: string
+                  image:
+                    description: name of the image including namespace
+                    type: string
+                  tag:
+                    description: tag of the image, can use regular expressions
+                    type: string
+                required:
+                - registryName
+                - image
+                - tag
+              target:
+                type: object
+                properties:
+                  registryName:
+                    description: name of registry resource
+                    type: string
+                  image:
+                    description: name of the image including namespace
+                    type: string
+                required:
+                - registryName
+                - image
+    selectableFields:
+    - jsonPath: .spec.src.registryName
+    additionalPrinterColumns:
+    - jsonPath: .spec.src.registryName
+      name: "Src registry"
+      type: string
+    - jsonPath: .spec.src.image
+      name: "Image"
+      type: string
+    - jsonPath: .spec.src.tag
+      name: "Tag"
+      type: string
+

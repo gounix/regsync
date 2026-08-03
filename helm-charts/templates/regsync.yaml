@@ -1,0 +1,15 @@
+{{- range $v := .Values.regsync }}
+---
+apiVersion: gounix.nl/v1
+kind: Regsync
+metadata:
+  name: {{ $v.name }}
+spec:
+  src:
+    registryName: {{ $v.src.registryName }}
+    image: {{ $v.src.image }}
+    tag: {{ $v.src.tag }}
+  target:
+    registryName: {{ $v.target.registryName }}
+    image: {{ $v.target.image }}
+{{- end }}

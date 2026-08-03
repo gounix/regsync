@@ -1,0 +1,24 @@
+{{- if and .Values.metrics.enabled .Values.metrics.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template "regsync.fullname" . }}-servicemonitor
+  namespace: {{ .Values.metrics.serviceMonitor.namespace }}
+  labels:
+    app: {{ template "regsync.name" . }}-metrics
+{{- if .Values.metrics.serviceMonitor.labels }}
+{{ toYaml .Values.metrics.serviceMonitor.labels | indent 4 }}
+{{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ template "regsync.fullname" . }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "regsync.name" . }}
+  endpoints:
+  - port: metrics
+    scheme: http
+    path: /metrics
+{{- end }}
+

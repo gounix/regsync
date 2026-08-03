@@ -1,0 +1,56 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: registries.gounix.nl
+spec:
+  group: gounix.nl
+  scope: Namespaced
+  names:
+    plural: registries
+    singular: registry
+    kind: Registry
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              scheme:
+                description: scheme to use to talk to the host, http or https
+                type: string
+                enum:
+                  - http
+                  - https
+              tlsVerify:
+                description: verify the certificate of hte host
+                type: boolean
+              host:
+                description: registry host, fqdn
+                type: string
+              authenticated:
+                description: authentication needed or not
+                type: boolean
+              secretName:
+                description: fully qualified name of secret if authenticated = true
+                type: string
+            required:
+            - host
+            - authenticated
+    selectableFields:
+    - jsonPath: .spec.host
+    additionalPrinterColumns:
+    - jsonPath: .spec.host
+      name: "Registry server"
+      type: string
+    - jsonPath: .spec.authenticated
+      name: "Authenticated"
+      type: string
+    - jsonPath: .spec.secretName
+      name: "Secret name"
+      type: string
+

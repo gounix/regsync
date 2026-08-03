@@ -1,0 +1,13 @@
+{{- range $v := .Values.registry }}
+---
+apiVersion: gounix.nl/v1
+kind: Registry
+metadata:
+  name: {{ $v.name }}
+spec:
+  scheme: {{ $v.scheme }}
+  tlsVerify: {{ $v.tlsVerify }}
+  host: {{ $v.host }}
+  authenticated: {{ $v.authenticated }}
+  secretName: {{ $v.secretName }}
+{{- end }}
