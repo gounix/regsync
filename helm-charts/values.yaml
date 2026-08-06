@@ -25,6 +25,8 @@ env:
   PORT: 8080
   # The local time zone, to make sure logging and scheduling occur at the right time
   TZ: "Europe/Amsterdam"
+  # enable the garbage collector
+  GARBAGE_COLLECTOR: true
 
 registry:
   # popular public container registries
@@ -87,7 +89,7 @@ image:
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "1.0.0"
+  tag: "1.1.0"
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
