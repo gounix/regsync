@@ -115,11 +115,11 @@ func createJobSpec(name string, regsync resources.RegsyncT, tag string, srcreg r
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									"cpu": resource.MustParse("100m"),
-									"memory": resource.MustParse("128Mi"),
+									"memory": resource.MustParse("256Mi"),
 								},
 								Requests: corev1.ResourceList{
 									"cpu": resource.MustParse("100m"),
-									"memory": resource.MustParse("128Mi"),
+									"memory": resource.MustParse("256Mi"),
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{

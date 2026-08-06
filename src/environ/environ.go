@@ -32,6 +32,7 @@ import (
 
 type EnvT struct {
 	Standalone       bool   `env:"STANDALONE" default:false`
+	GarbageCollector bool   `env:"GARBAGE_COLLECTOR" default:false`
 	SyncerImage      string `env:"SYNCER_IMAGE,required"`
 	SyncerRepo       string `env:"SYNCER_REPO,required"`
 	SyncerTag        string `env:"SYNCER_TAG,required"`
@@ -49,6 +50,7 @@ func Load() error {
 	}
 	slog.Info("regsync.environ loaded environment", 
 		"STANDALONE", Env.Standalone, 
+		"GARBAGE_COLLECTOR", Env.GarbageCollector,
 		"SYNCER_IMAGE", Env.SyncerImage, 
 		"SYNCER_REPO", Env.SyncerRepo, 
 		"SYNCER_TAG", Env.SyncerTag, 

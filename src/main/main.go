@@ -94,6 +94,36 @@ func checkRegistry(registries resources.RegistryListT, registryName string, imag
 	return host, cred, token, nil
 }
 
+func garbageCollect(scheme string, tlsVerify bool, host string, image string, tag string, regcred gosecret.RegCredT) {
+
+	if ! environ.Env.GarbageCollector {
+		return
+	}
+
+	token, err := goregistry.AcquireDeleteToken(scheme, tlsVerify, host, image, regcred)
+	if err != nil {
+		slog.Error("main.garbageCollect goregistry.AcquireDeleteToken", "err", err)
+		return
+	}
+
+	gcList, err := token.GetVersions(scheme, tlsVerify, host, image, tag, true)
+	if err != nil {
+		slog.Error("main.garbageCollect get versions for garbage collection", "err", err)
+	}
+
+	for _, gcTag := range gcList {
+		slog.Info("main.garbageCollect", "image", image, "tag", gcTag)
+		err = token.DeleteImage(scheme, tlsVerify, host, image, gcTag)
+		if err != nil {
+			slog.Error("main.garbageCollect delete image", "err", err)
+		}
+		gometricsvr.PutLine("regsync_gc", 1.0, map[string]string{
+			"target": fmt.Sprintf("%s/%s:%s", host, image, gcTag),
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+		})
+	}
+}
+
 func Cycle() {
 
 	registries, err := resources.GetRegistryList()
@@ -145,7 +175,7 @@ func Cycle() {
 			continue
 		}
 
-		list, err = srcToken.GetVersions(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, entry.Spec.Src.Tag)
+		list, err = srcToken.GetVersions(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, entry.Spec.Src.Tag, false)
 		if err != nil {
 			slog.Error("main.Cycle get versions", "err", err)
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
@@ -158,9 +188,18 @@ func Cycle() {
 			})
 			continue
 		}
+		garbageCollect(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, entry.Spec.Src.Tag, dstCred)
 
 		for _, tag := range list {
 			slog.Info("main processing", "tag", tag)
+
+			// renew the token, it is only valid for 300 sec
+			srcToken, err = goregistry.AcquireToken(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, srcCred)
+			if err != nil {
+				slog.Error("main get src token", "err", err)
+				continue
+			}
+
 			srcTime, err := srcToken.GetLastUpdate(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, tag)
 			if err != nil {
 				slog.Error("main.Cycle get source time", "err", err)
@@ -175,6 +214,14 @@ func Cycle() {
 				continue
 			}
 			slog.Info("main.Cycle", "tag", tag, "srcTime", srcTime)
+
+			// renew the token, it is only valid for 300 sec
+			dstToken, err = goregistry.AcquireToken(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, dstCred)
+			if err != nil {
+				slog.Error("main get dst token", "err", err)
+				continue
+			}
+
 			dstTime, _ := dstToken.GetLastUpdate(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, tag)
 			// in case of error it could be missing, so replicate it
 			slog.Info("main.Cycle", "tag", tag, "dstTime", dstTime)
@@ -217,6 +264,8 @@ func main() {
 	gometricsvr.PutKey("regsync_registries", []string{"name", "namespace"})
         gometricsvr.PutHeader("regsync_configs", "configs of the regsync job", "gauge")
 	gometricsvr.PutKey("regsync_configs", []string{"name", "namespace"})
+        gometricsvr.PutHeader("regsync_gc", "garbage collected images", "gauge")
+	gometricsvr.PutKey("regsync_gc", []string{"target"})
 
 	gometricsvr.PutLine("regsync_version", 1.0, map[string]string{
                 "software": "regsync",
