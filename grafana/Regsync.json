@@ -560,19 +560,6 @@
       "type": "stat"
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "id": 3,
-      "panels": [],
-      "title": "Regsync Configuration",
-      "type": "row"
-    },
-    {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -582,17 +569,8 @@
           "color": {
             "mode": "thresholds"
           },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false
-          },
           "mappings": [],
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -610,29 +588,35 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 15
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 8
       },
-      "id": 4,
+      "id": 17,
       "options": {
-        "cellHeight": "sm",
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "host"
-          }
-        ]
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.4.3",
       "targets": [
         {
           "editorMode": "code",
           "exemplar": false,
-          "expr": "regsync_registries",
-          "format": "table",
+          "expr": "count(regsync_gc)",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -643,199 +627,287 @@
           }
         }
       ],
-      "title": "Registries",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value": true,
-              "__name__": true,
-              "container": true,
-              "endpoint": true,
-              "exported_namespace": false,
-              "instance": true,
-              "job": true,
-              "namespace": true,
-              "pod": true,
-              "service": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Time": 8,
-              "Value": 16,
-              "__name__": 9,
-              "authenticated": 5,
-              "container": 10,
-              "endpoint": 11,
-              "exported_namespace": 0,
-              "host": 4,
-              "instance": 12,
-              "job": 13,
-              "name": 1,
-              "namespace": 7,
-              "pod": 14,
-              "scheme": 2,
-              "secretname": 6,
-              "service": 15,
-              "tlsverify": 3
-            },
-            "renameByName": {
-              "authenticated": "Authenticated",
-              "exported_namespace": "Namespace",
-              "host": "Registry host",
-              "name": "Name",
-              "scheme": "Scheme",
-              "secretname": "Secret name",
-              "tlsverify": "TLS verify"
-            }
-          }
-        }
-      ],
-      "type": "table"
+      "title": "#garbage collected images",
+      "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "exported_namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 175
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "name"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 210
-              }
-            ]
-          }
-        ]
-      },
+      "collapsed": true,
       "gridPos": {
-        "h": 10,
+        "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 14
       },
-      "id": 5,
-      "options": {
-        "cellHeight": "sm",
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "target"
-          }
-        ]
-      },
-      "pluginVersion": "12.4.3",
-      "targets": [
+      "id": 3,
+      "panels": [
         {
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "regsync_configs",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
-          }
-        }
-      ],
-      "title": "Configurations",
-      "transformations": [
-        {
-          "id": "organize",
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 15
+          },
+          "id": 4,
           "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value": true,
-              "__name__": true,
-              "container": true,
-              "endpoint": true,
-              "instance": true,
-              "job": true,
-              "namespace": true,
-              "pod": true,
-              "service": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Time": 4,
-              "Value": 13,
-              "__name__": 5,
-              "container": 6,
-              "endpoint": 7,
-              "exported_namespace": 0,
-              "instance": 8,
-              "job": 9,
-              "name": 1,
-              "namespace": 10,
-              "pod": 11,
-              "service": 12,
-              "src": 2,
-              "target": 3
-            },
-            "renameByName": {
-              "Time": "",
-              "exported_namespace": "Namespace",
-              "name": "Name",
-              "src": "Source",
-              "target": "Target"
+            "cellHeight": "sm",
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "host"
+              }
+            ]
+          },
+          "pluginVersion": "12.4.3",
+          "targets": [
+            {
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "regsync_registries",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              }
             }
-          }
+          ],
+          "title": "Registries",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "exported_namespace": false,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Time": 8,
+                  "Value": 16,
+                  "__name__": 9,
+                  "authenticated": 5,
+                  "container": 10,
+                  "endpoint": 11,
+                  "exported_namespace": 0,
+                  "host": 4,
+                  "instance": 12,
+                  "job": 13,
+                  "name": 1,
+                  "namespace": 7,
+                  "pod": 14,
+                  "scheme": 2,
+                  "secretname": 6,
+                  "service": 15,
+                  "tlsverify": 3
+                },
+                "renameByName": {
+                  "authenticated": "Authenticated",
+                  "exported_namespace": "Namespace",
+                  "host": "Registry host",
+                  "name": "Name",
+                  "scheme": "Scheme",
+                  "secretname": "Secret name",
+                  "tlsverify": "TLS verify"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "footer": {
+                  "reducers": []
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "exported_namespace"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 175
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "name"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 210
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 25
+          },
+          "id": 5,
+          "options": {
+            "cellHeight": "sm",
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "target"
+              }
+            ]
+          },
+          "pluginVersion": "12.4.3",
+          "targets": [
+            {
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "regsync_configs",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              }
+            }
+          ],
+          "title": "Configurations",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "namespace": true,
+                  "pod": true,
+                  "service": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Time": 4,
+                  "Value": 13,
+                  "__name__": 5,
+                  "container": 6,
+                  "endpoint": 7,
+                  "exported_namespace": 0,
+                  "instance": 8,
+                  "job": 9,
+                  "name": 1,
+                  "namespace": 10,
+                  "pod": 11,
+                  "service": 12,
+                  "src": 2,
+                  "target": 3
+                },
+                "renameByName": {
+                  "Time": "",
+                  "exported_namespace": "Namespace",
+                  "name": "Name",
+                  "src": "Source",
+                  "target": "Target"
+                }
+              }
+            }
+          ],
+          "type": "table"
         }
       ],
-      "type": "table"
+      "title": "Regsync Configuration",
+      "type": "row"
     },
     {
       "collapsed": false,
@@ -843,7 +915,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 15
       },
       "id": 6,
       "panels": [],
@@ -981,14 +1053,26 @@
                 "value": 242
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Target image"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 336
+              }
+            ]
           }
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 24,
+        "h": 10,
+        "w": 8,
         "x": 0,
-        "y": 36
+        "y": 16
       },
       "id": 7,
       "options": {
@@ -1021,16 +1105,19 @@
               "Time": true,
               "Value": true,
               "__name__": true,
+              "base": true,
               "buildOK": true,
               "container": true,
               "dstOK": true,
               "endpoint": true,
               "instance": true,
               "job": true,
+              "name": true,
               "namespace": true,
               "pod": true,
               "service": true,
-              "srcOK": true
+              "srcOK": true,
+              "updated": true
             },
             "includeByName": {},
             "indexByName": {
@@ -1205,10 +1292,10 @@
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 24,
-        "x": 0,
-        "y": 41
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 16
       },
       "id": 12,
       "options": {
@@ -1241,16 +1328,19 @@
               "Time": true,
               "Value": true,
               "__name__": true,
+              "base": true,
               "buildOK": true,
               "container": true,
               "dstOK": true,
               "endpoint": true,
               "instance": true,
               "job": true,
+              "name": true,
               "namespace": true,
               "pod": true,
               "service": true,
-              "srcOK": true
+              "srcOK": true,
+              "updated": true
             },
             "includeByName": {},
             "indexByName": {
@@ -1285,6 +1375,109 @@
               "timestamp": "Timestamp",
               "updated": "Updated"
             }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "target"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 460
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "id": 16,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.4.3",
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "regsync_gc",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "title": "Garbage collector activity",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "container": true,
+              "endpoint": true,
+              "instance": true,
+              "job": true,
+              "namespace": true,
+              "pod": true,
+              "service": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
           }
         }
       ],
@@ -1428,7 +1621,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 26
       },
       "id": 11,
       "options": {
@@ -1567,6 +1760,6 @@
   "timezone": "browser",
   "title": "Regsync dashboard",
   "uid": "adsjjg4",
-  "version": 19,
+  "version": 24,
   "weekStart": ""
 }
