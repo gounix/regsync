@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/gounix/gok8s v1.0.2
-	github.com/gounix/gometricsvr v1.0.8
+	github.com/gounix/gometricsvr v1.0.10
 	github.com/gounix/goregistry v1.0.15
 	github.com/gounix/gosecret v1.0.1
 	regsync/environ v0.0.0-unpublished
