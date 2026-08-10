@@ -9,5 +9,5 @@ spec:
   tlsVerify: {{ $v.tlsVerify }}
   host: {{ $v.host }}
   authenticated: {{ $v.authenticated }}
-  secretName: {{ $v.secretName }}
+  secretName: "{{ $v.secretName }}"
 {{- end }}
