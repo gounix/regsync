@@ -41,7 +41,12 @@ import (
 	"time"
 )
 
-const sleepSeconds = 10
+const (
+	sleepSeconds       = 10
+	defaultCPUResource = "100m"
+	defaultMEMResoure  = "256Mi"
+)
+
 var   builderErrors = []string{
 	"OK",
 	"Environment not set",
@@ -54,19 +59,28 @@ var   builderErrors = []string{
 	"Buildah push failed",
 }
 
-// createJobSpec returns a job object that can be applied to cluster
-// It'll return the yaml example to k8s job object
-func createJobSpec(name string, regsync resources.RegsyncT, tag string, srcreg resources.RegistryT, dstreg resources.RegistryT, srcCred gosecret.RegCredT, dstCred gosecret.RegCredT) *batchv1.Job {
-	var (
-		trueVal           = true
-		zeroVal     int32 = 0
-		ttl         int32 = 259200 // seconds in 3 days
-		env         []corev1.EnvVar
-		authEnv     []corev1.EnvVar
-	)
+func createResourceList() corev1.ResourceList {
 
-	// add current timestamp, as job name should be unique
-	name = fmt.Sprintf("%s-%d", name, time.Now().UTC().UnixMilli())
+	cpuQuantity, err := resource.ParseQuantity(environ.Env.SyncerCPU)
+	if err != nil {
+		slog.Error("jobs.createJobSpec ParseQuantity cpu", "err", err)
+		cpuQuantity = resource.MustParse(defaultCPUResource)
+	}
+	memQuantity, err := resource.ParseQuantity(environ.Env.SyncerMEM)
+	if err != nil {
+		slog.Error("jobs.createJobSpec ParseQuantity mem", "err", err)
+		memQuantity = resource.MustParse(defaultMEMResoure)
+	}
+
+	return corev1.ResourceList{
+		"cpu":    cpuQuantity,
+		"memory": memQuantity,
+	}
+}
+
+func createEnvVarList(regsync resources.RegsyncT, tag string, srcreg resources.RegistryT, dstreg resources.RegistryT, srcCred gosecret.RegCredT, dstCred gosecret.RegCredT) []corev1.EnvVar {
+	var env         []corev1.EnvVar
+	var authEnv     []corev1.EnvVar
 
 	env = []corev1.EnvVar{
 		// info from client-go applyconfigurations/internal/internal.go
@@ -95,6 +109,25 @@ func createJobSpec(name string, regsync resources.RegsyncT, tag string, srcreg r
 		env = append(env, authEnv...)
 	}
 
+	return env
+}
+
+// createJobSpec returns a job object that can be applied to cluster
+// It'll return the yaml example to k8s job object
+func createJobSpec(name string, regsync resources.RegsyncT, tag string, srcreg resources.RegistryT, dstreg resources.RegistryT, srcCred gosecret.RegCredT, dstCred gosecret.RegCredT) *batchv1.Job {
+	var (
+		trueVal           = true
+		zeroVal     int32 = 0
+		ttl         int32 = 259200 // seconds in 3 days
+	)
+
+	// add current timestamp, as job name should be unique
+	name = fmt.Sprintf("%s-%d", name, time.Now().UTC().UnixMilli())
+
+
+	resourceList := createResourceList()
+	env := createEnvVarList(regsync, tag, srcreg, dstreg, srcCred, dstCred)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -106,21 +139,15 @@ func createJobSpec(name string, regsync resources.RegsyncT, tag string, srcreg r
 						{
 							Name:            name,
 							Image:           fmt.Sprintf("%s/%s:%s", environ.Env.SyncerRepo, environ.Env.SyncerImage, environ.Env.SyncerTag),
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: corev1.PullPolicy(environ.Env.SyncerPullPolicy),
 							Env:             env,
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &trueVal,
 								ReadOnlyRootFilesystem: &trueVal,
 							},
 							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									"cpu": resource.MustParse("100m"),
-									"memory": resource.MustParse("256Mi"),
-								},
-								Requests: corev1.ResourceList{
-									"cpu": resource.MustParse("100m"),
-									"memory": resource.MustParse("256Mi"),
-								},
+								Limits: resourceList,
+								Requests: resourceList,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								corev1.VolumeMount{

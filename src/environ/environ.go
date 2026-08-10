@@ -36,6 +36,9 @@ type EnvT struct {
 	SyncerImage      string `env:"SYNCER_IMAGE,required"`
 	SyncerRepo       string `env:"SYNCER_REPO,required"`
 	SyncerTag        string `env:"SYNCER_TAG,required"`
+	SyncerPullPolicy string `env:"SYNCER_PULLPOLICY" default:"Always"`
+	SyncerCPU        string `env:"SYNCER_CPU" default:"100m"`
+	SyncerMEM        string `env:"SYNCER_MEM" default:"256Mi"`
 	SyncerNamespace  string `env:"SYNCER_NAMESPACE,required"`
 	RegsyncNamespace string `env:"REGSYNC_NAMESPACE,required"`
 	Port             int    `env:"PORT,required"`
@@ -54,6 +57,9 @@ func Load() error {
 		"SYNCER_IMAGE", Env.SyncerImage, 
 		"SYNCER_REPO", Env.SyncerRepo, 
 		"SYNCER_TAG", Env.SyncerTag, 
+		"SYNCER_PULLPOLICY", Env.SyncerPullPolicy, 
+		"SYNCER_CPU", Env.SyncerCPU,
+		"SYNCER_MEM", Env.SyncerMEM,
 		"SYNCER_NAMESPACE", Env.SyncerNamespace,
 		"REGSYNC_NAMESPACE", Env.RegsyncNamespace,
 		"PORT", Env.Port)
