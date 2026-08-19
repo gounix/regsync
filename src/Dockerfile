@@ -12,7 +12,7 @@ RUN go mod tidy -C main
 RUN sed -i s/Development-version/${REGSYNC_VERSION}/ /main/main.go
 RUN sed -i s/Golang-version/${GOVERSION}/ /main/main.go
 
-RUN go build -C main -o regsync main.go
+RUN go build -C main -o regsync main.go copyimage.go copyblob.go
 
 FROM docker.io/library/golang:${GOVERSION}-alpine
 ARG GOVERSION

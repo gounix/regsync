@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/gounix/gok8s v1.0.2
 	github.com/gounix/gometricsvr v1.0.10
-	github.com/gounix/goregistry v1.0.16
+	github.com/gounix/goregistry/v2 v2.0.3
 	github.com/gounix/gosecret v1.0.1
 	regsync/environ v0.0.0-unpublished
 	regsync/jobs v0.0.0-unpublished
@@ -22,7 +22,6 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gounix/gojsonreq v1.0.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -60,4 +59,5 @@ replace (
 	regsync/environ v0.0.0-unpublished => ../environ
 	regsync/jobs v0.0.0-unpublished => ../jobs
 	regsync/resources v0.0.0-unpublished => ../resources
+//github.com/gounix/goregistry/v2 v2.0.2 => /home/ron/github/goregistry/v2
 )

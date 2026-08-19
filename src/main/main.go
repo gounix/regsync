@@ -27,11 +27,11 @@ import (
 	"fmt"
 	"github.com/gounix/gok8s"
 	"github.com/gounix/gometricsvr"
-	"github.com/gounix/goregistry"
+	"github.com/gounix/goregistry/v2"
 	"github.com/gounix/gosecret"
 	"log/slog"
 	"regsync/environ"
-	"regsync/jobs"
+	//"regsync/jobs"
 	"regsync/resources"
 	"strings"
 	"time"
@@ -72,53 +72,65 @@ func dumpRegSyncs(regsyncs resources.RegsyncListT) {
 
 }
 
-func checkRegistry(registries resources.RegistryListT, registryName string, image string) (resources.RegistryT, gosecret.RegCredT, goregistry.TokenT, error) {
+func checkRegistry(registries resources.RegistryListT, registryName string, image string) (goregistry.RegistryT, error) {
+	var reg goregistry.RegistryT
+
 	// getregistry
 	host, err := registries.GetRegistry(registryName, environ.Env.RegsyncNamespace)
 	if err != nil {
 		slog.Error("main.checkRegistry", "registry", registryName, "err", err)
-		return resources.RegistryT{}, gosecret.RegCredT{}, goregistry.TokenT(""), err
+		return goregistry.RegistryT{}, err
 	}
+
 	// getcredentials
 	cred, err := gosecret.GetCredentials(host.Spec.Authenticated, environ.Env.RegsyncNamespace, host.Spec.SecretName)
 	if err != nil {
 		slog.Error("main.checkRegistry", "secretName", host.Spec.SecretName, "err", err)
-		return resources.RegistryT{}, gosecret.RegCredT{}, goregistry.TokenT(""), err
+		return goregistry.RegistryT{}, err
 	}
+
+	reg.Scheme = host.Spec.Scheme
+        reg.TlsVerify = host.Spec.TlsVerify
+        reg.Host = host.Spec.Host
+        reg.Image = image
+        reg.Regcred = cred
+
 	// acquiretoken
-	token, err := goregistry.AcquireToken(host.Spec.Scheme, host.Spec.TlsVerify, host.Spec.Host, image, cred)
+	err = reg.AcquireToken()
 	if err != nil {
-		slog.Error("main.checkRegistry get src token", "err", err)
-		return resources.RegistryT{}, gosecret.RegCredT{}, goregistry.TokenT(""), err
+		slog.Error("main.checkRegistry get token", "err", err)
+		return goregistry.RegistryT{}, err
 	}
-	return host, cred, token, nil
+	return reg, nil
 }
 
-func garbageCollect(scheme string, tlsVerify bool, host string, image string, tag string, regcred gosecret.RegCredT) {
+func garbageCollect(reg goregistry.RegistryT, tag string) {
 
 	if ! environ.Env.GarbageCollector {
 		return
 	}
 
-	token, err := goregistry.AcquireDeleteToken(scheme, tlsVerify, host, image, regcred)
+	err := reg.AcquireDeleteToken()
 	if err != nil {
-		slog.Error("main.garbageCollect goregistry.AcquireDeleteToken", "err", err)
+		slog.Error("main.garbageCollect AcquireDeleteToken", "err", err)
 		return
 	}
 
-	gcList, err := token.GetVersions(scheme, tlsVerify, host, image, tag, true)
+	gcList, err := reg.GetVersions(tag, true)
 	if err != nil {
 		slog.Error("main.garbageCollect get versions for garbage collection", "err", err)
 	}
 
 	for _, gcTag := range gcList {
-		slog.Info("main.garbageCollect", "image", image, "tag", gcTag)
-		err = token.DeleteImage(scheme, tlsVerify, host, image, gcTag)
+		slog.Info("main.garbageCollect", "image", reg.Image, "tag", gcTag)
+
+		err = reg.DeleteImage(gcTag)
 		if err != nil {
 			slog.Error("main.garbageCollect delete image", "err", err)
 		}
+
 		gometricsvr.PutLine("regsync_gc", 1.0, map[string]string{
-			"target": fmt.Sprintf("%s/%s:%s", host, image, gcTag),
+			"target": fmt.Sprintf("%s/%s:%s", reg.Host, reg.Image, gcTag),
 			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 		})
 	}
@@ -148,12 +160,12 @@ func Cycle() {
 			"dst", entry.Spec.Target.RegistryName, 
 			"tag pattern", entry.Spec.Src.Tag)
 
-		srcHost, srcCred, srcToken, err := checkRegistry(registries, entry.Spec.Src.RegistryName, entry.Spec.Src.Image)
+		srcReg, err := checkRegistry(registries, entry.Spec.Src.RegistryName, entry.Spec.Src.Image)
 		if err != nil {
 			slog.Error("main.Cycle get source registry", "err", err)
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s", srcHost.Spec.Host, entry.Spec.Src.Image),
+				"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
 				"target": "",
 				"updated": "false",
 				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
@@ -161,13 +173,13 @@ func Cycle() {
 			})
 			continue
 		}
-		dstHost, dstCred, dstToken, err := checkRegistry(registries, entry.Spec.Target.RegistryName, entry.Spec.Target.Image)
+		dstReg, err := checkRegistry(registries, entry.Spec.Target.RegistryName, entry.Spec.Target.Image)
 		if err != nil {
 			slog.Error("main.Cycle get dest registry", "err", err)
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s", srcHost.Spec.Host, entry.Spec.Src.Image),
-				"target": fmt.Sprintf("%s/%s", dstHost.Spec.Host, entry.Spec.Target.Image),
+				"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
+				"target": fmt.Sprintf("%s/%s", dstReg.Host, entry.Spec.Target.Image),
 				"updated": "false",
 				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 				"err": strings.ReplaceAll(err.Error(),"\"", ""),
@@ -175,38 +187,43 @@ func Cycle() {
 			continue
 		}
 
-		list, err = srcToken.GetVersions(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, entry.Spec.Src.Tag, false)
+		list, err = srcReg.GetVersions(entry.Spec.Src.Tag, false)
 		if err != nil {
 			slog.Error("main.Cycle get versions", "err", err)
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s", srcHost.Spec.Host, entry.Spec.Src.Image),
-				"target": fmt.Sprintf("%s/%s", dstHost.Spec.Host, entry.Spec.Target.Image),
+				"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
+				"target": fmt.Sprintf("%s/%s", dstReg.Host, entry.Spec.Target.Image),
 				"updated": "false",
 				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 				"err": strings.ReplaceAll(err.Error(),"\"", ""),
 			})
 			continue
 		}
-		garbageCollect(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, entry.Spec.Src.Tag, dstCred)
+		garbageCollect(dstReg, entry.Spec.Src.Tag)
 
+		gometricsvr.PutLine("regsync_matches", 1.0, map[string]string{
+			"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
+			"pattern": entry.Spec.Src.Tag,
+			"matches": fmt.Sprintf("%d", len(list)),
+		})
 		for _, tag := range list {
 			slog.Info("main processing", "tag", tag)
 
 			// renew the token, it is only valid for 300 sec
-			srcToken, err = goregistry.AcquireToken(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, srcCred)
+			err = srcReg.AcquireToken()
 			if err != nil {
 				slog.Error("main get src token", "err", err)
 				continue
 			}
 
-			srcTime, err := srcToken.GetLastUpdate(srcHost.Spec.Scheme, srcHost.Spec.TlsVerify, srcHost.Spec.Host, entry.Spec.Src.Image, tag)
+			srcTime, err := srcReg.GetLastUpdate(tag)
 			if err != nil {
 				slog.Error("main.Cycle get source time", "err", err)
 				gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 					"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-					"base": fmt.Sprintf("%s/%s:%s", srcHost.Spec.Host, entry.Spec.Src.Image, tag),
-					"target": fmt.Sprintf("%s/%s:%s", dstHost.Spec.Host, entry.Spec.Target.Image, tag),
+					"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, entry.Spec.Src.Image, tag),
+					"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, entry.Spec.Target.Image, tag),
 					"updated": "false",
 					"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 					"err": strings.ReplaceAll(err.Error(),"\"", ""),
@@ -216,20 +233,21 @@ func Cycle() {
 			slog.Info("main.Cycle", "tag", tag, "srcTime", srcTime)
 
 			// renew the token, it is only valid for 300 sec
-			dstToken, err = goregistry.AcquireToken(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, dstCred)
+			err = dstReg.AcquireToken()
 			if err != nil {
 				slog.Error("main get dst token", "err", err)
 				continue
 			}
 
-			dstTime, _ := dstToken.GetLastUpdate(dstHost.Spec.Scheme, dstHost.Spec.TlsVerify, dstHost.Spec.Host, entry.Spec.Target.Image, tag)
+			dstTime, _ := dstReg.GetLastUpdate(tag)
 			// in case of error it could be missing, so replicate it
 			slog.Info("main.Cycle", "tag", tag, "dstTime", dstTime)
 			updated := false
 			message := ""
 			if srcTime.After(dstTime) {
 				slog.Info("main.Cycle", "tag", tag, "download", true)
-				err := jobs.RunSyncJob(entry, tag, srcHost, dstHost, srcCred, dstCred)
+				err = copyImage(srcReg, dstReg, tag)
+				//err := jobs.RunSyncJob(entry, tag, srcReg.Host, dstReg.Host, srcReg.Regcred, dstReg.Regcred)
 				if err == nil {
 					updated = true
 				} else {
@@ -238,8 +256,8 @@ func Cycle() {
 			}
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s:%s", srcHost.Spec.Host, entry.Spec.Src.Image, tag),
-				"target": fmt.Sprintf("%s/%s:%s", dstHost.Spec.Host, entry.Spec.Target.Image, tag),
+				"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, entry.Spec.Src.Image, tag),
+				"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, entry.Spec.Target.Image, tag),
 				"updated": fmt.Sprintf("%t", updated),
 				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 				"err": message,
@@ -248,6 +266,33 @@ func Cycle() {
 
 	}
 	slog.Info("main.Cycle finished")
+}
+
+func waitForNext(start time.Time) {
+	var num int64
+	var unit string
+	var interval time.Duration
+
+	_, err := fmt.Sscanf(environ.Env.Interval, "%d%1s", &num, &unit)
+	if err != nil {
+		slog.Error("main.waitForNext", "INTERVAL", environ.Env.Interval, "err", err)
+		num = 24
+		unit = "h"
+	}
+	switch unit {
+	case "h":
+		interval = time.Duration(num) * time.Hour
+	case "d":
+		interval = time.Duration(24 * num) * time.Hour
+	default:
+		slog.Error("main.waitForNext", "illegal unit", unit)
+		interval = time.Duration(24) * time.Hour
+	}
+	now := time.Now()
+	active := now.Sub(start)
+	todo := time.Duration(interval) - active
+	slog.Info("main.waitForNext", "sleep", todo)
+	time.Sleep(todo)
 }
 
 func main() {
@@ -266,6 +311,8 @@ func main() {
 	gometricsvr.PutKey("regsync_configs", []string{"name", "namespace"})
         gometricsvr.PutHeader("regsync_gc", "garbage collected images", "gauge")
 	gometricsvr.PutKey("regsync_gc", []string{"target"})
+        gometricsvr.PutHeader("regsync_matches", "number of tags matching pattern", "gauge")
+	gometricsvr.PutKey("regsync_matches", []string{"base"})
 
 	gometricsvr.PutLine("regsync_version", 1.0, map[string]string{
                 "software": "regsync",
@@ -280,8 +327,9 @@ func main() {
 
 	gok8s.InitConfig(environ.Env.Standalone)
 	for {
+		start := time.Now()
 		Cycle()
-		time.Sleep(24 * time.Hour)
+		waitForNext(start)
 	}
 }
 

@@ -33,13 +33,14 @@ import (
 type EnvT struct {
 	Standalone       bool   `env:"STANDALONE" default:false`
 	GarbageCollector bool   `env:"GARBAGE_COLLECTOR" default:false`
-	SyncerImage      string `env:"SYNCER_IMAGE,required"`
-	SyncerRepo       string `env:"SYNCER_REPO,required"`
-	SyncerTag        string `env:"SYNCER_TAG,required"`
-	SyncerPullPolicy string `env:"SYNCER_PULLPOLICY" default:"Always"`
-	SyncerCPU        string `env:"SYNCER_CPU" default:"100m"`
-	SyncerMEM        string `env:"SYNCER_MEM" default:"256Mi"`
-	SyncerNamespace  string `env:"SYNCER_NAMESPACE,required"`
+	//SyncerImage      string `env:"SYNCER_IMAGE,required"`
+	//SyncerRepo       string `env:"SYNCER_REPO,required"`
+	//SyncerTag        string `env:"SYNCER_TAG,required"`
+	//SyncerPullPolicy string `env:"SYNCER_PULLPOLICY" default:"Always"`
+	//SyncerCPU        string `env:"SYNCER_CPU" default:"100m"`
+	//SyncerMEM        string `env:"SYNCER_MEM" default:"256Mi"`
+	Interval         string `env:"INTERVAL" default:"24h"`
+	//SyncerNamespace  string `env:"SYNCER_NAMESPACE,required"`
 	RegsyncNamespace string `env:"REGSYNC_NAMESPACE,required"`
 	Port             int    `env:"PORT,required"`
 }
@@ -54,13 +55,14 @@ func Load() error {
 	slog.Info("regsync.environ loaded environment", 
 		"STANDALONE", Env.Standalone, 
 		"GARBAGE_COLLECTOR", Env.GarbageCollector,
-		"SYNCER_IMAGE", Env.SyncerImage, 
-		"SYNCER_REPO", Env.SyncerRepo, 
-		"SYNCER_TAG", Env.SyncerTag, 
-		"SYNCER_PULLPOLICY", Env.SyncerPullPolicy, 
-		"SYNCER_CPU", Env.SyncerCPU,
-		"SYNCER_MEM", Env.SyncerMEM,
-		"SYNCER_NAMESPACE", Env.SyncerNamespace,
+		//"SYNCER_IMAGE", Env.SyncerImage, 
+		//"SYNCER_REPO", Env.SyncerRepo, 
+		//"SYNCER_TAG", Env.SyncerTag, 
+		//"SYNCER_PULLPOLICY", Env.SyncerPullPolicy, 
+		//"SYNCER_CPU", Env.SyncerCPU,
+		//"SYNCER_MEM", Env.SyncerMEM,
+		"INTERVAL", Env.Interval,
+		//"SYNCER_NAMESPACE", Env.SyncerNamespace,
 		"REGSYNC_NAMESPACE", Env.RegsyncNamespace,
 		"PORT", Env.Port)
 	return nil
