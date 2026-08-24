@@ -5,10 +5,9 @@ go 1.26.0
 require (
 	github.com/gounix/gok8s v1.0.2
 	github.com/gounix/gometricsvr v1.0.10
-	github.com/gounix/goregistry/v2 v2.0.3
+	github.com/gounix/goregistry/v2 v2.0.12
 	github.com/gounix/gosecret v1.0.1
 	regsync/environ v0.0.0-unpublished
-	regsync/jobs v0.0.0-unpublished
 	regsync/resources v0.0.0-unpublished
 )
 
@@ -56,8 +55,7 @@ require (
 )
 
 replace (
+	//github.com/gounix/goregistry/v2 v2.0.8 => /home/ron/github/goregistry/v2
 	regsync/environ v0.0.0-unpublished => ../environ
-	regsync/jobs v0.0.0-unpublished => ../jobs
 	regsync/resources v0.0.0-unpublished => ../resources
-//github.com/gounix/goregistry/v2 v2.0.2 => /home/ron/github/goregistry/v2
 )

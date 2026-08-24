@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2026 gounix
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 package main
 
 import (
@@ -29,6 +5,7 @@ import (
 	"github.com/gounix/goregistry/v2"
 	"github.com/gounix/gosecret"
 	"log/slog"
+	"regsync/resources"
 )
 
 func copyManifest(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, mediaType string, digest string) error {
@@ -44,7 +21,13 @@ func copyManifest(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, medi
 	slog.Info("main.copyManifest putlayers", "total", len(ret.Json.Layers))
 	for num, layer := range ret.Json.Layers {
 		slog.Info("main.copyManifest putlayers", "number", num, "digest", layer.Digest, "size", layer.Size)
-		err = copyBlob(srcReg, dstReg,  layer.MediaType, layer.Digest)
+		if dstReg.SupportChunkedUpload {
+			slog.Info("main.copyManifest using chunked upload")
+			err = streamCopyBlob(srcReg, dstReg,  layer.MediaType, layer.Digest)
+		} else {
+			slog.Info("main.copyManifest using bulk upload")
+			err = copyBlob(srcReg, dstReg,  layer.MediaType, layer.Digest)
+		}
 		if err != nil {
 			slog.Error("main.copyManifest copyBlob layer", "err", err)
 			return err
@@ -60,7 +43,7 @@ func copyManifest(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, medi
 	}
 
 	// finally send the manifest
-	err = dstReg.PutManifest(mediaType, ret.Raw, digest)
+	err = dstReg.PutManifest(ret.Json.MediaType, ret.Raw, digest)
 	if err != nil {
 		slog.Error("main.copyManifest PutManifest", "err", err)
 		return err
@@ -98,7 +81,23 @@ func copyManifestList(srcReg goregistry.RegistryT, srcCred gosecret.RegCredT, ds
 	return nil
 }
 
-func copyFilteredManifestList(srcReg goregistry.RegistryT, srcCred gosecret.RegCredT, dstReg goregistry.RegistryT, dstCred gosecret.RegCredT, tag string) error {
+func inFilter(architecture string, os string, filter []resources.FilterT) bool {
+	if len(filter) == 0 {
+		// empty filter matches all
+		slog.Info("main.inFilter empty filter matches")
+		return true
+	}
+	for _, entry := range filter {
+		if entry.Architecture == architecture && entry.Os == os {
+			slog.Info("main.inFilter match", "architecture", architecture, "os", os)
+			return true
+		}
+	}
+	slog.Error("main.inFilter no match")
+	return false
+}
+
+func copyFilteredManifestList(srcReg goregistry.RegistryT, srcCred gosecret.RegCredT, dstReg goregistry.RegistryT, dstCred gosecret.RegCredT, filter []resources.FilterT, tag string) error {
 	var new goregistry.ManifestListT
 
 	ret, err := srcReg.GetManifestList(tag)
@@ -115,7 +114,7 @@ func copyFilteredManifestList(srcReg goregistry.RegistryT, srcCred gosecret.RegC
 		slog.Info("main.copyFilteredManifestList", "arch", entry.Platform.Architecture, "os", entry.Platform.Os)
 		slog.Info("main.copyFilteredManifestList", "MediaType", entry.MediaType, "Digest", entry.Digest)
 
-		if entry.Platform.Architecture == "amd64" {
+		if inFilter(entry.Platform.Architecture, entry.Platform.Os, filter) {
 
 			err = copyManifest(srcReg, dstReg, entry.MediaType, entry.Digest)
 			if err != nil {
@@ -140,24 +139,18 @@ func copyFilteredManifestList(srcReg goregistry.RegistryT, srcCred gosecret.RegC
 	return nil
 }
 
-func copyImage(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, tag string) error {
+func copyImage(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, filter []resources.FilterT, tag string) error {
 	var err error
 
-	err = srcReg.AcquireToken()
-        if err != nil {
-                slog.Error("main.copyImage get src token", "err", err)
-		return err
-        }
-
-	err = dstReg.AcquirePushToken()
-        if err != nil {
-                slog.Error("main.copyImage get src token", "err", err)
-		return err
-        }
-
-	//err = copyFilteredManifestList(srcReg, srcReg.Regcred, dstReg, dstReg.Regcred, tag)
-	err = copyManifestList(srcReg, srcReg.Regcred, dstReg, dstReg.Regcred, tag)
-	if err != nil {
+	// check if the source is a manifestlist or a manifest
+	_, err = srcReg.GetManifestList(tag)
+	if err == nil {
+		err = copyFilteredManifestList(srcReg, srcReg.Regcred, dstReg, dstReg.Regcred, filter, tag)
+		if err != nil {
+			slog.Error("main.copyImage copyManifestList", "err", err)
+			return err
+		}
+	} else {
 		err = copyManifest(srcReg, dstReg, "application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json", tag)
 		if err != nil {
 			slog.Error("main.copyImage copyManifest", "err", err)

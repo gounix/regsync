@@ -46,9 +46,14 @@ type (
 		RegistryName string `json:"registryName"`
 		Image        string `json:"image"`
 	}
+	FilterT struct {
+		Architecture string `json:"architecture"`
+		Os           string `json:"os"`
+	}
 	RsSpecT struct {
-		Src    SrcT    `json:"src"`
-		Target TargetT `json:"target"`
+		Src    SrcT      `json:"src"`
+		Target TargetT   `json:"target"`
+		Filter []FilterT `json:"filter"`
 	}
 	RegsyncT struct {
 		Metadata MetadataT `json:"metadata"`

@@ -31,7 +31,6 @@ import (
 	"github.com/gounix/gosecret"
 	"log/slog"
 	"regsync/environ"
-	//"regsync/jobs"
 	"regsync/resources"
 	"strings"
 	"time"
@@ -40,15 +39,21 @@ import (
 func dumpRegistries(registries resources.RegistryListT) {
 	for _, entry := range registries.Items {
                 slog.Info("main.dumpRegistries",
-			"Name", entry.Metadata.Name, "Namespace", entry.Metadata.Namespace,
-                        "Scheme", entry.Spec.Scheme, "tlsVerify", entry.Spec.TlsVerify,
-                        "Host", entry.Spec.Host, "Authenticated", entry.Spec.Authenticated, "SecretName", entry.Spec.SecretName)
+			"Name", entry.Metadata.Name, 
+			"Namespace", entry.Metadata.Namespace,
+                        "Scheme", entry.Spec.Scheme, 
+			"tlsVerify", entry.Spec.TlsVerify,
+                        "Host", entry.Spec.Host, 
+			"SupportChunkedUpload", entry.Spec.SupportChunkedUpload, 
+			"Authenticated", entry.Spec.Authenticated, 
+			"SecretName", entry.Spec.SecretName)
 		gometricsvr.PutLine("regsync_registries", 1.0, map[string]string{
 			"name": entry.Metadata.Name, 
 			"namespace": entry.Metadata.Namespace,
 			"scheme": entry.Spec.Scheme,
 			"tlsverify": fmt.Sprintf("%t", entry.Spec.TlsVerify),
 			"host": entry.Spec.Host, 
+			"SupportChunkedUpload": fmt.Sprintf("%t", entry.Spec.SupportChunkedUpload), 
 			"authenticated": fmt.Sprintf("%t", entry.Spec.Authenticated), 
 			"secretname": entry.Spec.SecretName,
 		})
@@ -56,11 +61,24 @@ func dumpRegistries(registries resources.RegistryListT) {
 
 }
 
+func dumpFilter(filter []resources.FilterT) string {
+	str := ""
+        for _, entry := range filter {
+		separator := ""
+		if len(str) > 0 {
+			separator = " or "
+		}
+		str = fmt.Sprintf("%s%s%s/%s", str, separator, entry.Architecture, entry.Os)
+	}
+	return str
+}
+
 func dumpRegSyncs(regsyncs resources.RegsyncListT) {
         for _, entry := range regsyncs.Items {
                 slog.Info("resources.dumpRegsyncs",
 			"Metadata.Name", entry.Metadata.Name, "Metadata.Namespace", entry.Metadata.Namespace,
 			"Spec.Src", fmt.Sprintf("%s/%s:%s", entry.Spec.Src.RegistryName, entry.Spec.Src.Image, entry.Spec.Src.Tag),
+			"Spec.Filter", dumpFilter(entry.Spec.Filter),
 			"Spec.Target", fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Image))
 		gometricsvr.PutLine("regsync_configs", 1.0, map[string]string{
 			"name": entry.Metadata.Name, 
@@ -92,6 +110,7 @@ func checkRegistry(registries resources.RegistryListT, registryName string, imag
 	reg.Scheme = host.Spec.Scheme
         reg.TlsVerify = host.Spec.TlsVerify
         reg.Host = host.Spec.Host
+        reg.SupportChunkedUpload = host.Spec.SupportChunkedUpload
         reg.Image = image
         reg.Regcred = cred
 
@@ -158,6 +177,8 @@ func Cycle() {
 		slog.Info("main.Cycle processing entry", 
 			"src", entry.Spec.Src.RegistryName, 
 			"dst", entry.Spec.Target.RegistryName, 
+			"image", entry.Spec.Src.Image,
+			"filter", dumpFilter(entry.Spec.Filter),
 			"tag pattern", entry.Spec.Src.Tag)
 
 		srcReg, err := checkRegistry(registries, entry.Spec.Src.RegistryName, entry.Spec.Src.Image)
@@ -210,13 +231,6 @@ func Cycle() {
 		for _, tag := range list {
 			slog.Info("main processing", "tag", tag)
 
-			// renew the token, it is only valid for 300 sec
-			err = srcReg.AcquireToken()
-			if err != nil {
-				slog.Error("main get src token", "err", err)
-				continue
-			}
-
 			srcTime, err := srcReg.GetLastUpdate(tag)
 			if err != nil {
 				slog.Error("main.Cycle get source time", "err", err)
@@ -232,13 +246,6 @@ func Cycle() {
 			}
 			slog.Info("main.Cycle", "tag", tag, "srcTime", srcTime)
 
-			// renew the token, it is only valid for 300 sec
-			err = dstReg.AcquireToken()
-			if err != nil {
-				slog.Error("main get dst token", "err", err)
-				continue
-			}
-
 			dstTime, _ := dstReg.GetLastUpdate(tag)
 			// in case of error it could be missing, so replicate it
 			slog.Info("main.Cycle", "tag", tag, "dstTime", dstTime)
@@ -246,8 +253,7 @@ func Cycle() {
 			message := ""
 			if srcTime.After(dstTime) {
 				slog.Info("main.Cycle", "tag", tag, "download", true)
-				err = copyImage(srcReg, dstReg, tag)
-				//err := jobs.RunSyncJob(entry, tag, srcReg.Host, dstReg.Host, srcReg.Regcred, dstReg.Regcred)
+				err = copyImage(srcReg, dstReg, entry.Spec.Filter, tag)
 				if err == nil {
 					updated = true
 				} else {

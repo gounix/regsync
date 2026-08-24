@@ -47,11 +47,12 @@ type (
 		Namespace string `json:"namespace"`
 	}
 	SpecT struct {
-		Scheme        string `json:"scheme"`
-		TlsVerify     bool   `json:"tlsVerify"`
-		Host          string `json:"host"`
-		Authenticated bool   `json:"authenticated"`
-		SecretName    string `json:"secretName"`
+		Scheme               string `json:"scheme"`
+		TlsVerify            bool   `json:"tlsVerify"`
+		Host                 string `json:"host"`
+		SupportChunkedUpload bool   `json:"supportChunkedUpload"`
+		Authenticated        bool   `json:"authenticated"`
+		SecretName           string `json:"secretName"`
 	}
 	RegistryT struct {
 		Metadata MetadataT `json:"metadata"`
@@ -68,8 +69,12 @@ func dumpRegistries(dat RegistryListT) {
 	for _, entry := range dat.Items {
 		slog.Info("resources.dumpRegistries", "Name", entry.Metadata.Name, "Namespace", entry.Metadata.Namespace)
 		slog.Info("resources.dumpRegistries", 
-			"Scheme", entry.Spec.Scheme, "tlsVerify", entry.Spec.TlsVerify, 
-			"Host", entry.Spec.Host, "Authenticated", entry.Spec.Authenticated, "SecretName", entry.Spec.SecretName)
+			"Scheme", entry.Spec.Scheme, 
+			"tlsVerify", entry.Spec.TlsVerify, 
+			"Host", entry.Spec.Host, 
+			"SupportChunkedUpload", entry.Spec.SupportChunkedUpload, 
+			"Authenticated", entry.Spec.Authenticated, 
+			"SecretName", entry.Spec.SecretName)
 	}
 }
 
