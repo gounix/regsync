@@ -36,6 +36,20 @@ spec:
                 - registryName
                 - image
                 - tag
+              filter:
+                type: array
+                description: list of architecture+os combinations to filter on, an empty filter selects all
+                x-kubernetes-list-type: atomic
+                items:
+                  type: object
+                  description: architecture+os combinations to filter on
+                  properties:
+                    architecture:
+                      description: architecture to replicate (amd64, arm64, ..)
+                      type: string
+                    os:
+                      description: os to replicate (linux, windows, ...)
+                      type: string
               target:
                 type: object
                 properties:

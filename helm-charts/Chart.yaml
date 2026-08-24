@@ -1,6 +1,9 @@
 apiVersion: v2
 name: regsync
-description: A Helm chart for Kubernetes
+description: regsync Helm chart for Kubernetes
+maintainers:
+- email: ron.visser@gounix.nl
+  name: Ron Visser
 
 # A chart can be either an 'application' or a 'library' chart.
 #

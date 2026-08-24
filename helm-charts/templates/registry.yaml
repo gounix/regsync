@@ -5,9 +5,10 @@ kind: Registry
 metadata:
   name: {{ $v.name }}
 spec:
-  scheme: {{ $v.scheme }}
+  scheme: "{{ $v.scheme }}"
   tlsVerify: {{ $v.tlsVerify }}
-  host: {{ $v.host }}
+  host: "{{ $v.host }}"
+  supportChunkedUpload: {{ $v.supportChunkedUpload }}
   authenticated: {{ $v.authenticated }}
   secretName: "{{ $v.secretName }}"
 {{- end }}

@@ -32,6 +32,9 @@ spec:
               host:
                 description: registry host, fqdn
                 type: string
+              supportChunkedUpload:
+                description: true if this registry supports a chunked upload with http patch
+                type: boolean
               authenticated:
                 description: authentication needed or not
                 type: boolean

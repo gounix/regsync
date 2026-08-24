@@ -6,10 +6,16 @@ metadata:
   name: {{ $v.name }}
 spec:
   src:
-    registryName: {{ $v.src.registryName }}
-    image: {{ $v.src.image }}
-    tag: {{ $v.src.tag }}
+    registryName: "{{ $v.src.registryName }}"
+    image: "{{ $v.src.image }}"
+    tag: '{{ $v.src.tag }}'
+  {{- if $v.filter }}
+  filter:
+    {{- with $v.filter }}
+     {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
   target:
-    registryName: {{ $v.target.registryName }}
-    image: {{ $v.target.image }}
+    registryName: "{{ $v.target.registryName }}"
+    image: "{{ $v.target.image }}"
 {{- end }}

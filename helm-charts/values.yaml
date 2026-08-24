@@ -14,12 +14,6 @@ metrics:
       release: prometheus
 
 env:
-  # Settings for the syncer image
-  SYNCER_REPO: "docker.io"
-  SYNCER_IMAGE: "gounix/syncer"
-  SYNCER_TAG: "1.0.0"
-  # The namespace where the syncer jobs will be spawned
-  SYNCER_NAMESPACE: "regsync"
   REGSYNC_NAMESPACE: "regsync"
   # The tcp port at which the prometheus metrics can be scraped
   PORT: 8080
@@ -37,24 +31,28 @@ registry:
     scheme: https
     tlsVerify: true
     host: "registry-1.docker.io"
+    supportChunkedUpload: true
     authenticated: true
     secretName: "default/regcred"
   - name: quay
     scheme: https
     tlsVerify: true
     host: "quay.io"
+    supportChunkedUpload: true
     authenticated: false
     secretName: ""
   - name: ghcr
     scheme: https
     tlsVerify: true
     host: "ghcr.io"
+    supportChunkedUpload: true
     authenticated: false
     secretName: ""
   - name: gcr
     scheme: https
     tlsVerify: true
     host: "mirror.gcr.io"
+    supportChunkedUpload: true
     authenticated: false
     secretName: ""
   # private container registries
@@ -62,6 +60,7 @@ registry:
   #  scheme: https
   #  tlsVerify: false
   #  host: "gitea.int.gounix.nl"
+  #  supportChunkedUpload: false
   #  authenticated: true
   #  secretName: "regcred-gitea"
 
@@ -92,7 +91,7 @@ image:
   # This sets the pull policy for images.
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "1.3.0"
+  tag: "2.0.0"
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
