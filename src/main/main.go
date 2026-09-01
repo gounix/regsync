@@ -79,12 +79,12 @@ func dumpRegSyncs(regsyncs resources.RegsyncListT) {
 			"Metadata.Name", entry.Metadata.Name, "Metadata.Namespace", entry.Metadata.Namespace,
 			"Spec.Src", fmt.Sprintf("%s/%s:%s", entry.Spec.Src.RegistryName, entry.Spec.Src.Image, entry.Spec.Src.Tag),
 			"Spec.Filter", dumpFilter(entry.Spec.Filter),
-			"Spec.Target", fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Image))
+			"Spec.Target", fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Base))
 		gometricsvr.PutLine("regsync_configs", 1.0, map[string]string{
 			"name": entry.Metadata.Name, 
 			"namespace": entry.Metadata.Namespace,
 			"src": fmt.Sprintf("%s/%s:%s", entry.Spec.Src.RegistryName, entry.Spec.Src.Image, entry.Spec.Src.Tag),
-			"target": fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Image),
+			"target": fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Base),
 		})
         }
 
@@ -155,6 +155,172 @@ func garbageCollect(reg goregistry.RegistryT, tag string) {
 	}
 }
 
+func ProcessImage(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, regsync resources.RegsyncT, tag string) error {
+
+	err := dstReg.AcquirePushToken()
+	if err != nil {
+		slog.Error("main.ProcessImage AcquireToken", "err", err)
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, tag),
+			"updated": "false",
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": strings.ReplaceAll(err.Error(),"\"", ""),
+		})
+		return err
+	}
+
+	srcTime, err := srcReg.GetLastUpdate(tag)
+	if err != nil {
+		slog.Error("main.ProcessImage get source time", "err", err)
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, tag),
+			"updated": "false",
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": strings.ReplaceAll(err.Error(),"\"", ""),
+		})
+		return err
+	}
+	slog.Info("main.ProcessImage", "image", dstReg.Image, "tag", tag, "srcTime", srcTime)
+
+	dstTime, err := dstReg.GetLastUpdate(tag)
+	if err == nil && dstTime.IsZero() {
+		// it exists, but we cannot determine the modified time, do not replicate
+		slog.Error("main.ProcessImage cannot determine dst time but image exists, do not replicate")
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, tag),
+			"updated": "false",
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": "",
+		})
+		return nil
+	}
+
+	slog.Info("main.ProcessImage", "image", dstReg.Image, "tag", tag, "dstTime", dstTime, "err", err)
+	updated := false
+	message := ""
+	// in case of error it could be missing, so replicate it
+	if err != nil || srcTime.After(dstTime) {
+		slog.Info("main.ProcessImage", "image", dstReg.Image, "tag", tag, "download", true)
+		err = copyImage(srcReg, dstReg, regsync.Spec.Filter, tag)
+		if err == nil {
+			updated = true
+		} else {
+			message = err.Error()
+		}
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, tag),
+			"updated": fmt.Sprintf("%t", updated),
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": message,
+		})
+		return nil
+	}
+	slog.Info("main.ProcessImage", "image", dstReg.Image, "tag", tag, "download", false)
+	gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+		"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+		"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, tag),
+		"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, tag),
+		"updated": "false",
+		"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+		"err": message,
+	})
+	return nil
+}
+
+func ProcessTag(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, regsync resources.RegsyncT) error {
+
+	err := srcReg.AcquireToken()
+	if err != nil {
+		slog.Error("main.ProcessTag AcquireToken", "err", err)
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, regsync.Spec.Src.Tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, regsync.Spec.Src.Tag),
+			"updated": "false",
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": strings.ReplaceAll(err.Error(),"\"", ""),
+		})
+		return err
+	}
+
+	list, err := srcReg.GetVersions(regsync.Spec.Src.Tag, false)
+	if err != nil {
+		slog.Error("main.ProcessTag GetVersions", "err", err)
+		gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+			"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+			"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, srcReg.Image, regsync.Spec.Src.Tag),
+			"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, dstReg.Image, regsync.Spec.Src.Tag),
+			"updated": "false",
+			"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+			"err": strings.ReplaceAll(err.Error(),"\"", ""),
+		})
+		return err
+	}
+
+	garbageCollect(dstReg, regsync.Spec.Src.Tag)
+
+	gometricsvr.PutLine("regsync_matches", 1.0, map[string]string{
+		"base": fmt.Sprintf("%s/%s", srcReg.Host, srcReg.Image),
+		"pattern": regsync.Spec.Src.Tag,
+		"matches": fmt.Sprintf("%d", len(list)),
+	})
+	slog.Info("main.ProcessTag", "src image", srcReg.Image, "tags", list)
+	for _, tag := range list {
+		slog.Info("main.ProcessTag", "src image", srcReg.Image, "tag", tag)
+		ProcessImage(srcReg, dstReg, regsync, tag)
+	}
+	return nil
+}
+
+func ProcessResource(srcReg goregistry.RegistryT, dstReg goregistry.RegistryT, regsync resources.RegsyncT) error {
+
+	var imageList = []string{ regsync.Spec.Src.Image }
+	var err error
+
+	slog.Info("main.ProcessResource", "namespace", regsync.Metadata.Namespace, "name", regsync.Metadata.Name)
+	if regsync.Spec.Src.ImageRegex != "" {
+		srcReg.AcquireCatalogToken()
+		imageList, err = srcReg.GetCatalog(regsync.Spec.Src.ImageRegex, false)
+		if err != nil {
+			slog.Error("main.ProcessResource GetCatalog", "err", err)
+			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
+				"name": fmt.Sprintf("%s/%s", regsync.Metadata.Namespace, regsync.Metadata.Name),
+				"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, regsync.Spec.Src.ImageRegex, regsync.Spec.Src.Tag),
+				"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, regsync.Spec.Target.Base, regsync.Spec.Src.Tag),
+				"updated": "false",
+				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+				"err": strings.ReplaceAll(err.Error(),"\"", ""),
+			})
+			return err
+		}
+	}
+	slog.Info("main.ProcessResource", "matched", imageList)
+
+	base := dstReg.Image
+	for _, image := range imageList {
+		slog.Info("main.ProcessResource", "processing", image)
+
+		// fill in image name in src and dst
+		srcReg.Image = image
+		if base == "" {
+			dstReg.Image = image
+		} else {
+			dstReg.Image = fmt.Sprintf("%s/%s", base, image)
+		}
+
+		ProcessTag(srcReg, dstReg, regsync)
+	}
+	return nil
+}
+
 func Cycle() {
 
 	registries, err := resources.GetRegistryList()
@@ -172,11 +338,11 @@ func Cycle() {
 	dumpRegSyncs(regsyncs)
 
 	for _, entry := range regsyncs.Items {
-		var list []string
 
 		slog.Info("main.Cycle processing entry", 
 			"src", entry.Spec.Src.RegistryName, 
 			"dst", entry.Spec.Target.RegistryName, 
+			"imageRegex", entry.Spec.Src.ImageRegex,
 			"image", entry.Spec.Src.Image,
 			"filter", dumpFilter(entry.Spec.Filter),
 			"tag pattern", entry.Spec.Src.Tag)
@@ -194,81 +360,20 @@ func Cycle() {
 			})
 			continue
 		}
-		dstReg, err := checkRegistry(registries, entry.Spec.Target.RegistryName, entry.Spec.Target.Image)
+		dstReg, err := checkRegistry(registries, entry.Spec.Target.RegistryName, entry.Spec.Target.Base)
 		if err != nil {
 			slog.Error("main.Cycle get dest registry", "err", err)
 			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
 				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
 				"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
-				"target": fmt.Sprintf("%s/%s", dstReg.Host, entry.Spec.Target.Image),
+				"target": fmt.Sprintf("%s/%s", dstReg.Host, entry.Spec.Target.Base),
 				"updated": "false",
 				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
 				"err": strings.ReplaceAll(err.Error(),"\"", ""),
 			})
 			continue
 		}
-
-		list, err = srcReg.GetVersions(entry.Spec.Src.Tag, false)
-		if err != nil {
-			slog.Error("main.Cycle get versions", "err", err)
-			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
-				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
-				"target": fmt.Sprintf("%s/%s", dstReg.Host, entry.Spec.Target.Image),
-				"updated": "false",
-				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
-				"err": strings.ReplaceAll(err.Error(),"\"", ""),
-			})
-			continue
-		}
-		garbageCollect(dstReg, entry.Spec.Src.Tag)
-
-		gometricsvr.PutLine("regsync_matches", 1.0, map[string]string{
-			"base": fmt.Sprintf("%s/%s", srcReg.Host, entry.Spec.Src.Image),
-			"pattern": entry.Spec.Src.Tag,
-			"matches": fmt.Sprintf("%d", len(list)),
-		})
-		for _, tag := range list {
-			slog.Info("main processing", "tag", tag)
-
-			srcTime, err := srcReg.GetLastUpdate(tag)
-			if err != nil {
-				slog.Error("main.Cycle get source time", "err", err)
-				gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
-					"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-					"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, entry.Spec.Src.Image, tag),
-					"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, entry.Spec.Target.Image, tag),
-					"updated": "false",
-					"timestamp": time.Now().Format("2006-01-02 15:04:05"),
-					"err": strings.ReplaceAll(err.Error(),"\"", ""),
-				})
-				continue
-			}
-			slog.Info("main.Cycle", "tag", tag, "srcTime", srcTime)
-
-			dstTime, _ := dstReg.GetLastUpdate(tag)
-			// in case of error it could be missing, so replicate it
-			slog.Info("main.Cycle", "tag", tag, "dstTime", dstTime)
-			updated := false
-			message := ""
-			if srcTime.After(dstTime) {
-				slog.Info("main.Cycle", "tag", tag, "download", true)
-				err = copyImage(srcReg, dstReg, entry.Spec.Filter, tag)
-				if err == nil {
-					updated = true
-				} else {
-					message = err.Error()
-				}
-			}
-			gometricsvr.PutLine("regsync_stats", 1.0, map[string]string{
-				"name": fmt.Sprintf("%s/%s", entry.Metadata.Namespace, entry.Metadata.Name),
-				"base": fmt.Sprintf("%s/%s:%s", srcReg.Host, entry.Spec.Src.Image, tag),
-				"target": fmt.Sprintf("%s/%s:%s", dstReg.Host, entry.Spec.Target.Image, tag),
-				"updated": fmt.Sprintf("%t", updated),
-				"timestamp": time.Now().Format("2006-01-02 15:04:05"),
-				"err": message,
-			})
-		}
+		ProcessResource(srcReg, dstReg, entry)
 
 	}
 	slog.Info("main.Cycle finished")

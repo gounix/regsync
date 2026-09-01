@@ -39,12 +39,13 @@ const (
 type (
 	SrcT struct {
 		RegistryName string `json:"registryName"`
+		ImageRegex   string `json:"imageRegex"`
 		Image        string `json:"image"`
 		Tag          string `json:"tag"`
 	}
 	TargetT struct {
 		RegistryName string `json:"registryName"`
-		Image        string `json:"image"`
+		Base         string `json:"base"`
 	}
 	FilterT struct {
 		Architecture string `json:"architecture"`
@@ -71,7 +72,7 @@ func (dat RegsyncListT) dumpRegsyncs() {
 		slog.Info("resources.dumpRegsyncs", "Metadata.Name", entry.Metadata.Name, "Metadata.Namespace", entry.Metadata.Namespace)
 		slog.Info("resources.dumpRegsyncs", 
 		    "Spec.Src", fmt.Sprintf("%s/%s:%s", entry.Spec.Src.RegistryName, entry.Spec.Src.Image, entry.Spec.Src.Tag), 
-		    "Spec.Target", fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Image))
+		    "Spec.Target", fmt.Sprintf("%s/%s", entry.Spec.Target.RegistryName, entry.Spec.Target.Base))
 	}
 }
 
