@@ -26,6 +26,9 @@ spec:
                   registryName:
                     description: name of registry resource
                     type: string
+                  imageRegex:
+                    description: regex for the source image, if this is set image is ignored
+                    type: string
                   image:
                     description: name of the image including namespace
                     type: string
@@ -56,12 +59,12 @@ spec:
                   registryName:
                     description: name of registry resource
                     type: string
-                  image:
-                    description: name of the image including namespace
+                  base:
+                    description: base directory where source image(including path) should be stored
                     type: string
                 required:
                 - registryName
-                - image
+                - base
     selectableFields:
     - jsonPath: .spec.src.registryName
     additionalPrinterColumns:

@@ -7,7 +7,8 @@ metadata:
 spec:
   src:
     registryName: "{{ $v.src.registryName }}"
-    image: "{{ $v.src.image }}"
+    imageRegex: '{{ $v.src.imageRegex }}'
+    image: '{{ $v.src.image }}'
     tag: '{{ $v.src.tag }}'
   {{- if $v.filter }}
   filter:
@@ -17,5 +18,5 @@ spec:
   {{- end }}
   target:
     registryName: "{{ $v.target.registryName }}"
-    image: "{{ $v.target.image }}"
+    base: "{{ $v.target.base }}"
 {{- end }}

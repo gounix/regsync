@@ -19,6 +19,8 @@ env:
   PORT: 8080
   # The local time zone, to make sure logging and scheduling occur at the right time
   TZ: "Europe/Amsterdam"
+  # how often to run, specify in hours(example 2h) or days(example 7d)
+  INTERVAL: 1d
   # enable the garbage collector
   GARBAGE_COLLECTOR: true
   # set a limit on memory in Go to trigger the garbagecollector
@@ -70,6 +72,9 @@ regsync: {}
   #    registryName: "docker"
   #    image: "library/golang"
   #    tag: '^1.26(\.[45]*)??-alpine$'
+  #  filter:
+  #    - architecture: amd64
+  #      os: linux
   #  target:
   #    registryName: "gitea"
   #    image: "gitea_admin/docker.io/library/golang"
@@ -195,13 +200,12 @@ httpRoute:
   #       value: v2
 
 resources:
-  resources:
-   limits:
-     cpu: 400m
-     memory: 750Mi
-   requests:
-     cpu: 400m
-     memory: 750Mi
+  limits:
+    cpu: 400m
+    memory: 750Mi
+  requests:
+    cpu: 400m
+    memory: 750Mi
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
